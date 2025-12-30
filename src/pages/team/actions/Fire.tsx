@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { supabase } from '../../../lib/supabase';
 
 interface Employee {
@@ -20,14 +20,13 @@ interface ActionProps {
     companyCash: number;
 }
 
-export const Fire = ({ onBack, onConfirm, employee, companyId, companyCash }: ActionProps) => {
+export const Fire = ({ onBack, onConfirm, employee, companyId }: ActionProps) => {
     const [loading, setLoading] = useState(false);
 
     // Calculate severance (2 months)
     // salary_raw is annual.
     const monthlySalary = Math.ceil(employee.salary_raw / 12);
     const severanceCost = monthlySalary * 2;
-    const canAfford = companyCash >= severanceCost; // technically can go into debt, but maybe warn?
 
     const handleFire = async () => {
         setLoading(true);

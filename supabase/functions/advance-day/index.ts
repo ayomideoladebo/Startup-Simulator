@@ -152,7 +152,12 @@ Deno.serve(async (req) => {
         }
         */
 
-        let aiDecision = {
+        let aiDecision: {
+            news_headline: string | null;
+            market: { hype_score: number; regulation: number };
+            growth_factor: number;
+            churn_factor: number;
+        } = {
             news_headline: null,
             market: { hype_score: market?.hype_score || 50, regulation: market?.regulation_intensity || 10 },
             growth_factor: 1.0,

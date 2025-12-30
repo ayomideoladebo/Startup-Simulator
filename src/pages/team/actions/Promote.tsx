@@ -82,10 +82,6 @@ export const Promote = ({ onBack, employee, companyCash, companyId, onConfirm }:
         }
     };
 
-    const salaryIncreasePercent = selectedOption 
-        ? Math.round(((selectedOption.newSalary - currentSalary) / currentSalary) * 100) 
-        : 0;
-
     const weeklyIncrease = selectedOption 
         ? Math.round((selectedOption.newSalary - currentSalary) / 52) 
         : 0;

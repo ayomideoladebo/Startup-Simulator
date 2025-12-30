@@ -60,7 +60,7 @@ export const useGameState = () => {
                 if (compError) throw compError;
 
                 // 5. Fetch Market Trends
-                const { data: trends, error: trendsError } = await supabase
+                const { data: trends } = await supabase
                     .from('market_trends')
                     .select('*')
                     .eq('niche', company.niche)
