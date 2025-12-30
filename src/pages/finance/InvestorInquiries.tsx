@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useGameState } from '../../hooks/useGameState';
@@ -16,10 +16,9 @@ export const InvestorInquiries = () => {
     ];
 
     const [inquiries, setInquiries] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
     const { company } = useGameState();
 
-    React.useEffect(() => {
+    useEffect(() => {
         if (company?.id) {
             fetchInquiries();
         }
@@ -27,7 +26,6 @@ export const InvestorInquiries = () => {
 
     const fetchInquiries = async () => {
         try {
-            setLoading(true);
             const { data, error } = await supabase
                 .from('investor_inquiries')
                 .select('*')
@@ -38,8 +36,6 @@ export const InvestorInquiries = () => {
             setInquiries(data || []);
         } catch (error) {
             console.error('Error fetching inquiries:', error);
-        } finally {
-            setLoading(false);
         }
     };
 

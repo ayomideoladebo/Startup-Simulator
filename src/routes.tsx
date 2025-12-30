@@ -1,5 +1,5 @@
-import React from 'react';
-import { Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
+import { useState, useEffect } from 'react';
+import { Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { useGameState } from "./hooks/useGameState";    // Added import
 import { MobileContainer } from "./components/layout/MobileContainer";
 import { TopHeader } from "./components/layout/TopHeader";
@@ -43,13 +43,13 @@ type GameLayoutContextType = {
 const GameLayout = () => {
     const location = useLocation();
     const isDashboard = location.pathname === '/dashboard';
-    const [isBottomNavVisible, setBottomNavVisible] = React.useState(true);
+    const [isBottomNavVisible, setBottomNavVisible] = useState(true);
     
     // Fetch Global Game State for the Header (and eventually Sidebar)
     const { company, loading } = useGameState();
 
     // Reset bottom nav visibility on route change (in case a page forgets to reset it)
-    React.useEffect(() => {
+    useEffect(() => {
         setBottomNavVisible(true);
     }, [location.pathname]);
 

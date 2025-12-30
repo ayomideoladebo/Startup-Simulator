@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation, useOutletContext } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { LaunchConfirmation } from './LaunchConfirmation';
@@ -39,7 +39,7 @@ export const ProductResults = () => {
     }, [feature]);
 
     const fetchFeature = async () => {
-        const { data, error } = await supabase
+        const { data } = await supabase
             .from('product_features')
             .select('*')
             .eq('id', featureId)

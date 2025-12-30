@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 
 export const Dashboard = () => {
-    const { company, gameState, competitors, marketTrends, loading, error } = useGameState();
+    const { company, gameState, competitors, loading, error } = useGameState();
     const navigate = useNavigate();
     const [processing, setProcessing] = useState(false);
     const [monthlyBurn, setMonthlyBurn] = useState(0);
@@ -69,7 +69,7 @@ export const Dashboard = () => {
     const handleAdvanceWeek = async () => {
         setProcessing(true);
         try {
-            const { data, error } = await supabase.functions.invoke('advance-day', {
+            const { error } = await supabase.functions.invoke('advance-day', {
                 body: { company_id: company.id }
             });
             

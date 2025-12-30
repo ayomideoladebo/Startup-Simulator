@@ -1,5 +1,4 @@
-import React from 'react';
-import { Candidate } from '../Recruitment';
+import { Candidate } from './Recruitment';
 
 interface HiringConfirmationProps {
     candidate: Candidate;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { InitiateHeadhunt } from './InitiateHeadhunt';
 import { HeadhuntStatus } from './HeadhuntStatus';
 import { supabase } from '../../lib/supabase';

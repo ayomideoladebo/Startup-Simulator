@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { HiringConfirmation } from './HiringConfirmation';
 import { Recruitment, Candidate } from './Recruitment';
@@ -256,7 +256,7 @@ export const Team = () => {
         if (!company) return;
 
         // 1. Insert into employees
-        const { data: newEmpData, error: insertError } = await supabase
+        const { error: insertError } = await supabase
             .from('employees')
             .insert({
                 company_id: company.id,

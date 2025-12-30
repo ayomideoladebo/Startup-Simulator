@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGameState } from '../../hooks/useGameState';
-import { supabase } from '../../lib/supabase';
 
 export const Finance = () => {
     const navigate = useNavigate();
