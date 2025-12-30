@@ -57,6 +57,10 @@ Deno.serve(async (req) => {
 
         const { data: market } = await adminClient.from('market_trends').select('*').eq('niche', company.niche).eq('week_number', gameState.current_week).maybeSingle()
 
+
+
+
+
         // 1b. Fetch Active Features (IN_PROGRESS or TESTING)
         const { data: activeFeatures } = await adminClient
             .from('product_features')
@@ -77,6 +81,67 @@ Deno.serve(async (req) => {
         // Standardize: 7 days per week, 4 weeks per month, 12 months per year (48 weeks/year)
         const newWeek = Math.ceil(newDay / 7);
         const newMonth = Math.ceil(newWeek / 4);
+
+        // 1.1 Competitor Logic: Initialization & Simulation
+        // Check if competitors exist for this simulation
+        let { data: competitors } = await adminClient.from('competitors').select('*').eq('company_id', company_id).eq('is_active', true);
+
+        if (!competitors || competitors.length < 10) {
+            console.log('Initializing Global 10 competitors for simulation...');
+
+            const parodyNames = [
+                'Awason', 'Facetome', 'Goggle', 'Mcrosoft', 'Spytify',
+                'Netflicks', 'AirTnT', 'Ubar', 'Disscird', 'Instaglam'
+            ];
+            const niches = ['Fintech', 'E-commerce', 'Social Media', 'AI', 'Healthcare'];
+
+            const newCompetitors = [];
+
+            // Generate distinct startups until we have 10 total
+            let needed = 10 - (competitors ? competitors.length : 0);
+
+            for (let i = 0; i < needed; i++) {
+                const isDirect = i < 5; // First 5 are direct competitors
+                const niche = isDirect ? company.niche : niches[Math.floor(Math.random() * niches.length)];
+                const name = i < parodyNames.length ? parodyNames[i] : `Startup ${Math.floor(Math.random() * 1000)}`;
+
+                newCompetitors.push({
+                    company_id,
+                    name: isDirect ? `${name} (Rival)` : name,
+                    niche: niche,
+                    market_share: Math.floor(Math.random() * 30) + 1,
+                    valuation: Math.floor(Math.random() * 50000000) + 1000000,
+                    is_direct_competitor: isDirect,
+                    is_active: true,
+                    attributes: {
+                        aggressiveness: Math.random().toFixed(2),
+                        innovation: Math.random().toFixed(2)
+                    }
+                });
+            }
+
+            if (newCompetitors.length > 0) {
+                const { data: created } = await adminClient.from('competitors').insert(newCompetitors).select();
+                competitors = [...(competitors || []), ...(created || [])];
+            }
+        }
+
+        // New Entrant Logic (Every ~30-40 days)
+        // Simple check: if day % 35 === 0
+        if (newDay > 1 && newDay % 35 === 0) {
+            const isDirect = Math.random() > 0.7; // 30% chance of direct competitor
+            const newC = {
+                company_id,
+                name: `Rising Star ${newDay}`,
+                niche: isDirect ? company.niche : 'AI',
+                market_share: 1,
+                valuation: 500000,
+                is_direct_competitor: isDirect,
+                is_active: true,
+                attributes: { aggressiveness: 0.9, innovation: 0.9 }
+            };
+            await adminClient.from('competitors').insert(newC);
+        }
 
         /* Old Logic Removed:
         if (newDay % 7 === 0) {
@@ -111,7 +176,43 @@ Deno.serve(async (req) => {
         let growthMult = isNewWeek ? aiDecision.growth_factor : 1.0 + (Math.random() * 0.005);
         let churnMult = isNewWeek ? aiDecision.churn_factor : 0.001;
 
-        const newCustomers = Math.floor(gameState.customers * (growthMult - churnMult))
+
+        // Competitor Actions (Weekly)
+        if (isNewWeek && competitors && competitors.length > 0) {
+            console.log('Simulating competitor actions...');
+            for (const comp of competitors) {
+                // Simple AI or Random logic for now (can be replaced with LLM call later)
+                const roll = Math.random();
+                let action = null;
+                let desc = '';
+
+                if (comp.attributes.aggressiveness > 0.7 && roll > 0.5) {
+                    action = 'marketing_blitz';
+                    desc = `${comp.name} is running a massive ad campaign!`;
+                } else if (comp.attributes.innovation > 0.8 && roll > 0.7) {
+                    action = 'feature_launch';
+                    desc = `${comp.name} launched a cutting-edge feature.`;
+                }
+
+                if (action) {
+                    await adminClient.from('competitor_actions').insert({
+                        competitor_id: comp.id,
+                        week_number: newWeek,
+                        action_type: action,
+                        description: desc,
+                        impact_score: 5 // Placeholder
+                    });
+
+                    // Direct impact on user? (Maybe increase user churn temporarily)
+                    if (action === 'marketing_blitz') {
+                        // Increase user churn slightly this week
+                        churnMult += 0.005;
+                    }
+                }
+            }
+        }
+
+        let newCustomers = Math.floor(gameState.customers * (growthMult - churnMult))
         const finalCustomers = Math.max(0, newCustomers);
         const newMrr = finalCustomers * 10;
 
