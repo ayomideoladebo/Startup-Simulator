@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../../lib/supabase';
+import { useGameState } from '../../hooks/useGameState';
 
 export const InvestorInquiries = () => {
     const navigate = useNavigate();
@@ -12,6 +14,46 @@ export const InvestorInquiries = () => {
         { name: 'Negotiating', count: null },
         { name: 'Offers', count: null }
     ];
+
+    const [inquiries, setInquiries] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const { company } = useGameState();
+
+    React.useEffect(() => {
+        if (company?.id) {
+            fetchInquiries();
+        }
+    }, [company?.id]);
+
+    const fetchInquiries = async () => {
+        try {
+            setLoading(true);
+            const { data, error } = await supabase
+                .from('investor_inquiries')
+                .select('*')
+                .eq('company_id', company!.id)
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+            setInquiries(data || []);
+        } catch (error) {
+            console.error('Error fetching inquiries:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const filteredInquiries = inquiries.filter(inq => {
+        if (activeTab === 'All') return true;
+        if (activeTab === 'New') return inq.status === 'new';
+        if (activeTab === 'Negotiating') return inq.status === 'negotiating';
+        if (activeTab === 'Offers') return inq.status === 'offer';
+        return true;
+    }).filter(inq => {
+        if (!searchQuery) return true;
+        return inq.investor_name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+               inq.message?.toLowerCase().includes(searchQuery.toLowerCase());
+    });
 
     return (
         <div className="bg-background-light dark:bg-background-dark font-display antialiased text-slate-900 dark:text-white overflow-x-hidden min-h-screen relative pb-24">
@@ -75,87 +117,81 @@ export const InvestorInquiries = () => {
 
             {/* Scrollable List Area */}
             <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-background-light dark:bg-background-dark pb-24">
+                {filteredInquiries.length === 0 && (
+                     <div className="flex flex-col items-center justify-center py-10 opacity-60">
+                         <span className="material-symbols-outlined text-4xl mb-2">inbox</span>
+                         <p className="text-sm">No inquiries found</p>
+                     </div>
+                )}
+                
+                {filteredInquiries.map(inq => {
+                    const isOffer = inq.status === 'offer';
+                    const isNew = inq.status === 'new';
+                    const isPassed = inq.status === 'passed';
+                    
+                    let cardClasses = "group relative flex gap-4 p-4 rounded-xl shadow-sm border transition-all cursor-pointer ";
+                    if (isOffer) {
+                        cardClasses += "bg-gradient-to-br from-amber-50 to-white dark:from-[#2a2215] dark:to-[#181022] shadow-[0_0_15px_-3px_rgba(245,158,11,0.15)] border-amber-500/50 hover:shadow-amber-500/20";
+                    } else if (isPassed) {
+                         cardClasses += "bg-white dark:bg-[#201a29] border-gray-100 dark:border-white/5 hover:bg-gray-50 dark:hover:bg-[#2a2236] opacity-75 grayscale-[0.5]";
+                    } else {
+                        cardClasses += "bg-white dark:bg-[#201a29] border-primary/40 hover:bg-gray-50 dark:hover:bg-[#2a2236]";
+                        if (!isNew) {
+                             cardClasses = cardClasses.replace("border-primary/40", "border-gray-100 dark:border-white/5");
+                        }
+                    }
 
-                {/* Inquiry Card: New */}
-                <div
-                    onClick={() => navigate('/finance/chat')}
-                    className="group relative flex gap-4 p-4 bg-white dark:bg-[#201a29] rounded-xl shadow-sm border border-primary/40 hover:bg-gray-50 dark:hover:bg-[#2a2236] transition-all cursor-pointer"
-                >
-                    <div className="bg-center bg-no-repeat bg-cover rounded-full h-12 w-12 shrink-0 border border-gray-100 dark:border-white/10 bg-purple-100 flex items-center justify-center text-purple-600 font-bold">NV</div>
-                    <div className="flex flex-1 flex-col justify-center min-w-0 pr-16">
-                        <div className="flex justify-between items-baseline mb-0.5">
-                            <p className="text-slate-900 dark:text-white text-base font-semibold leading-normal truncate">Nebula Ventures</p>
-                        </div>
-                        <p className="text-gray-500 dark:text-[#a89db9] text-xs font-normal mb-1">10m ago</p>
-                        <p className="text-gray-600 dark:text-gray-300 text-sm font-normal leading-relaxed line-clamp-2">We saw your latest user growth metrics and we are extremely impressed with the traction...</p>
-                    </div>
-                    <div className="absolute top-4 right-4 flex flex-col items-end gap-2">
-                        <span className="inline-flex items-center rounded-full bg-primary/10 border border-primary/20 px-2 py-1 text-xs font-bold text-primary ring-1 ring-inset ring-primary/10">New</span>
-                    </div>
-                </div>
+                    // Simple logic to determine link
+                    let navigateLink = null;
+                    if (isOffer) navigateLink = '/finance/offer';
+                    else if (isNew) navigateLink = '/finance/chat'; // Default to chat for new ones
+                    
+                    return (
+                        <div
+                            key={inq.id}
+                            onClick={() => navigateLink && navigate(navigateLink)}
+                            className={cardClasses}
+                        >
+                            <div className={`bg-center bg-no-repeat bg-cover rounded-full h-12 w-12 shrink-0 border flex items-center justify-center font-bold ${
+                                isOffer 
+                                    ? 'border-amber-500/30 bg-amber-100 text-amber-600' 
+                                    : isPassed
+                                        ? 'border-gray-100 dark:border-white/10 bg-slate-100 text-slate-600'
+                                        : `border-gray-100 dark:border-white/10 bg-${inq.color || 'purple'}-100 text-${inq.color || 'purple'}-600`
+                            }`}>
+                                {inq.initials || inq.investor_name?.substring(0, 2).toUpperCase()}
+                            </div>
+                            
+                            <div className="flex flex-1 flex-col justify-center min-w-0 pr-16">
+                                <div className="flex justify-between items-baseline mb-0.5">
+                                    <p className="text-slate-900 dark:text-white text-base font-semibold leading-normal truncate">{inq.investor_name}</p>
+                                </div>
+                                <p className={`text-xs font-normal mb-1 ${isOffer ? 'text-amber-600 dark:text-amber-500/90' : 'text-gray-500 dark:text-[#a89db9]'}`}>
+                                    {new Date(inq.created_at).toLocaleDateString()}
+                                </p>
+                                <p className="text-gray-600 dark:text-gray-300 text-sm font-normal leading-relaxed line-clamp-2">{inq.message}</p>
+                            </div>
 
-                {/* Inquiry Card: Offer (Gamified Glow) */}
-                <div
-                    onClick={() => navigate('/finance/offer')}
-                    className="group relative flex gap-4 p-4 bg-gradient-to-br from-amber-50 to-white dark:from-[#2a2215] dark:to-[#181022] rounded-xl shadow-[0_0_15px_-3px_rgba(245,158,11,0.15)] border border-amber-500/50 hover:shadow-amber-500/20 transition-all cursor-pointer"
-                >
-                    <div className="bg-center bg-no-repeat bg-cover rounded-full h-12 w-12 shrink-0 border border-amber-500/30 bg-amber-100 flex items-center justify-center text-amber-600 font-bold">TC</div>
-                    <div className="flex flex-1 flex-col justify-center min-w-0 pr-16">
-                        <div className="flex justify-between items-baseline mb-0.5">
-                            <p className="text-slate-900 dark:text-white text-base font-semibold leading-normal truncate">Titan Capital</p>
+                            <div className="absolute top-4 right-4 flex flex-col items-end gap-2">
+                                {isNew && (
+                                     <span className="inline-flex items-center rounded-full bg-primary/10 border border-primary/20 px-2 py-1 text-xs font-bold text-primary ring-1 ring-inset ring-primary/10">New</span>
+                                )}
+                                {isOffer && (
+                                    <span className="inline-flex items-center rounded-full bg-amber-500 text-white px-2 py-1 text-xs font-bold shadow-sm">Offer Made</span>
+                                )}
+                                {inq.status === 'replied' && (
+                                    <span className="inline-flex items-center rounded-full bg-gray-200 dark:bg-white/10 px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-400">Replied</span>
+                                )}
+                                {inq.status === 'negotiating' && (
+                                    <span className="inline-flex items-center rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 px-2 py-1 text-xs font-bold">Negotiating</span>
+                                )}
+                                {isPassed && (
+                                    <span className="inline-flex items-center rounded-full bg-gray-100 dark:bg-white/5 px-2 py-1 text-xs font-medium text-gray-500 dark:text-gray-400">Passed</span>
+                                )}
+                            </div>
                         </div>
-                        <p className="text-amber-600 dark:text-amber-500/90 text-xs font-normal mb-1">1d ago</p>
-                        <p className="text-slate-700 dark:text-gray-300 text-sm font-normal leading-relaxed line-clamp-2">Term sheet attached. We are valuing the company at $15M post-money with a standard 20% option pool.</p>
-                    </div>
-                    <div className="absolute top-4 right-4 flex flex-col items-end gap-2">
-                        <span className="inline-flex items-center rounded-full bg-amber-500 text-white px-2 py-1 text-xs font-bold shadow-sm">Offer Made</span>
-                    </div>
-                </div>
-
-                {/* Inquiry Card: Replied */}
-                <div className="group relative flex gap-4 p-4 bg-white dark:bg-[#201a29] rounded-xl shadow-sm border border-gray-100 dark:border-white/5 hover:bg-gray-50 dark:hover:bg-[#2a2236] transition-all cursor-pointer">
-                    <div className="bg-center bg-no-repeat bg-cover rounded-full h-12 w-12 shrink-0 border border-gray-100 dark:border-white/10 bg-blue-100 flex items-center justify-center text-blue-600 font-bold">AG</div>
-                    <div className="flex flex-1 flex-col justify-center min-w-0 pr-16">
-                        <div className="flex justify-between items-baseline mb-0.5">
-                            <p className="text-slate-900 dark:text-white text-base font-semibold leading-normal truncate">Angel Group Alpha</p>
-                        </div>
-                        <p className="text-gray-500 dark:text-[#a89db9] text-xs font-normal mb-1">2h ago</p>
-                        <p className="text-gray-500 dark:text-[#a89db9] text-sm font-normal leading-relaxed line-clamp-2">Thanks for the pitch. Can you clarify your CAC vs LTV projections for next quarter?</p>
-                    </div>
-                    <div className="absolute top-4 right-4 flex flex-col items-end gap-2">
-                        <span className="inline-flex items-center rounded-full bg-gray-200 dark:bg-white/10 px-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-400">Replied</span>
-                    </div>
-                </div>
-
-                {/* Inquiry Card: Negotiating */}
-                <div className="group relative flex gap-4 p-4 bg-white dark:bg-[#201a29] rounded-xl shadow-sm border border-gray-100 dark:border-white/5 hover:bg-gray-50 dark:hover:bg-[#2a2236] transition-all cursor-pointer">
-                    <div className="bg-center bg-no-repeat bg-cover rounded-full h-12 w-12 shrink-0 border border-gray-100 dark:border-white/10 bg-green-100 flex items-center justify-center text-green-600 font-bold">SS</div>
-                    <div className="flex flex-1 flex-col justify-center min-w-0 pr-16">
-                        <div className="flex justify-between items-baseline mb-0.5">
-                            <p className="text-slate-900 dark:text-white text-base font-semibold leading-normal truncate">Stellar Seed</p>
-                        </div>
-                        <p className="text-gray-500 dark:text-[#a89db9] text-xs font-normal mb-1">3d ago</p>
-                        <p className="text-gray-500 dark:text-[#a89db9] text-sm font-normal leading-relaxed line-clamp-2">Let's schedule a follow-up meeting next Tuesday to go over the technical roadmap.</p>
-                    </div>
-                    <div className="absolute top-4 right-4 flex flex-col items-end gap-2">
-                        <span className="inline-flex items-center rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 px-2 py-1 text-xs font-bold">Negotiating</span>
-                    </div>
-                </div>
-
-                {/* Inquiry Card: Passed (Dimmed) */}
-                <div className="group relative flex gap-4 p-4 bg-white dark:bg-[#201a29] rounded-xl shadow-sm border border-gray-100 dark:border-white/5 hover:bg-gray-50 dark:hover:bg-[#2a2236] transition-all cursor-pointer opacity-75 grayscale-[0.5]">
-                    <div className="bg-center bg-no-repeat bg-cover rounded-full h-12 w-12 shrink-0 border border-gray-100 dark:border-white/10 bg-slate-100 flex items-center justify-center text-slate-600 font-bold">QA</div>
-                    <div className="flex flex-1 flex-col justify-center min-w-0 pr-16">
-                        <div className="flex justify-between items-baseline mb-0.5">
-                            <p className="text-slate-900 dark:text-white text-base font-semibold leading-normal truncate">Quantum Angel</p>
-                        </div>
-                        <p className="text-gray-500 dark:text-[#a89db9] text-xs font-normal mb-1">5d ago</p>
-                        <p className="text-gray-500 dark:text-[#a89db9] text-sm font-normal leading-relaxed line-clamp-2">Interesting concept, but not our sector at the moment. Best of luck!</p>
-                    </div>
-                    <div className="absolute top-4 right-4 flex flex-col items-end gap-2">
-                        <span className="inline-flex items-center rounded-full bg-gray-100 dark:bg-white/5 px-2 py-1 text-xs font-medium text-gray-500 dark:text-gray-400">Passed</span>
-                    </div>
-                </div>
+                    );
+                })}
             </div>
 
             {/* Floating Action Button */}

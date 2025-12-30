@@ -1,8 +1,34 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useGameState } from '../../hooks/useGameState';
+import { supabase } from '../../lib/supabase';
 
 export const Finance = () => {
     const navigate = useNavigate();
+    const { company, gameState } = useGameState();
+    const [finances, setFinances] = useState({
+        cash: 0,
+        mrr: 0,
+        burnRate: 85000,
+        netProfit: 35000
+    });
+
+    useEffect(() => {
+        if (company && gameState) {
+            setFinances({
+                cash: Number(company.cash) || 0,
+                mrr: Number(gameState.mrr) || 0,
+                burnRate: 85000, // Placeholder or calculate if expenses table exists
+                netProfit: Number(gameState.mrr) - 85000 // Simple calc
+            });
+        }
+    }, [company, gameState]);
+
+    const formatCurrency = (val: number) => {
+        if (val >= 1000000) return `$${(val / 1000000).toFixed(1)}M`;
+        if (val >= 1000) return `$${(val / 1000).toFixed(0)}k`;
+        return `$${val}`;
+    };
 
     return (
         <div className="bg-background-light dark:bg-background-dark font-display antialiased text-slate-900 dark:text-white overflow-x-hidden min-h-screen relative pb-20">
@@ -32,10 +58,14 @@ export const Finance = () => {
                 {/* Hero Section: Balance & Date */}
                 <div className="flex flex-col items-center justify-center pt-6 pb-2 px-4 relative">
                     <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">Total Cash Balance</p>
-                    <h1 className="text-slate-900 dark:text-white tracking-tighter text-[40px] font-bold leading-none">$1,240,000</h1>
+                    <h1 className="text-slate-900 dark:text-white tracking-tighter text-[40px] font-bold leading-none">
+                        {company ? formatCurrency(Number(company.cash)) : '...'}
+                    </h1>
                     <div className="flex items-center gap-1 mt-2 px-3 py-1 rounded-full bg-slate-200 dark:bg-surface-dark border border-slate-300 dark:border-white/10">
                         <span className="material-symbols-outlined text-base text-primary">calendar_today</span>
-                        <p className="text-slate-600 dark:text-slate-300 text-xs font-semibold">Oct 15, Year 2</p>
+                        <p className="text-slate-600 dark:text-slate-300 text-xs font-semibold">
+                            W{((gameState?.current_week || 1) - 1) % 48 + 1}, Y{Math.ceil((gameState?.current_week || 1) / 48)}
+                        </p>
                     </div>
                 </div>
 
@@ -45,7 +75,9 @@ export const Finance = () => {
                         <div className="flex justify-between items-end mb-2">
                             <div className="flex flex-col">
                                 <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Runway</span>
-                                <span className="text-lg font-bold text-slate-900 dark:text-white">14 Months</span>
+                                <span className="text-lg font-bold text-slate-900 dark:text-white">
+                                    {finances.burnRate > 0 ? Math.floor(finances.cash / finances.burnRate) : '∞'} Months
+                                </span>
                             </div>
                             <span className="text-xs font-medium text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded">Safe Zone</span>
                         </div>
@@ -54,7 +86,7 @@ export const Finance = () => {
                                 <div className="absolute inset-0 bg-white/20 w-full h-full animate-pulse"></div>
                             </div>
                         </div>
-                        <p className="text-slate-400 dark:text-slate-500 text-xs mt-2 text-right">Based on current burn rate of $85k/mo</p>
+                        <p className="text-slate-400 dark:text-slate-500 text-xs mt-2 text-right">Based on current burn rate of {formatCurrency(finances.burnRate)}/mo</p>
                     </div>
                 </div>
 
@@ -68,7 +100,7 @@ export const Finance = () => {
                             </div>
                             <span className="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase">MRR</span>
                         </div>
-                        <p className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">$120k</p>
+                        <p className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">{formatCurrency(finances.mrr)}</p>
                         <p className="text-emerald-500 text-xs font-medium flex items-center gap-0.5">
                             <span className="material-symbols-outlined text-sm">arrow_upward</span> 5.2%
                         </p>
@@ -81,7 +113,7 @@ export const Finance = () => {
                             </div>
                             <span className="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase">Burn Rate</span>
                         </div>
-                        <p className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">$85k</p>
+                        <p className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">{formatCurrency(finances.burnRate)}</p>
                         <p className="text-rose-500 text-xs font-medium flex items-center gap-0.5">
                             <span className="material-symbols-outlined text-sm">arrow_upward</span> 1.1%
                         </p>
@@ -94,7 +126,7 @@ export const Finance = () => {
                             </div>
                             <span className="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase">Net Profit</span>
                         </div>
-                        <p className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">+$35k</p>
+                        <p className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">{finances.netProfit > 0 ? '+' : ''}{formatCurrency(finances.netProfit)}</p>
                         <p className="text-emerald-500 text-xs font-medium flex items-center gap-0.5">
                             <span className="material-symbols-outlined text-sm">arrow_upward</span> 12%
                         </p>

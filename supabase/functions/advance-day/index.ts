@@ -73,14 +73,17 @@ Deno.serve(async (req) => {
         const newCash = company.cash + profit;
 
         // 3. Increment Date
-        let newDay = (gameState.current_day || 1) + 1;
-        let newWeek = gameState.current_week;
-        let newMonth = gameState.current_month;
+        const newDay = (gameState.current_day || 0) + 1;
+        // Standardize: 7 days per week, 4 weeks per month, 12 months per year (48 weeks/year)
+        const newWeek = Math.ceil(newDay / 7);
+        const newMonth = Math.ceil(newWeek / 4);
 
+        /* Old Logic Removed:
         if (newDay % 7 === 0) {
             newWeek++;
             if (newWeek % 4 === 0) newMonth++;
         }
+        */
 
         let aiDecision = {
             news_headline: null,

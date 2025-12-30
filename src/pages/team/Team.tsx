@@ -504,6 +504,41 @@ export const Team = () => {
         );
     }
 
+    const [selectedFilter, setSelectedFilter] = useState<'All' | 'Devs' | 'Design' | 'Sales'>('All');
+    
+    // Filter employees based on selected chip
+    const filteredEmployees = employees.filter(emp => {
+        if (selectedFilter === 'All') return true;
+        
+        const roleLower = emp.role.toLowerCase();
+        
+        if (selectedFilter === 'Devs') {
+            return roleLower.includes('developer') || 
+                   roleLower.includes('engineer') || 
+                   roleLower.includes('cto') ||
+                   roleLower.includes('architect') ||
+                   roleLower.includes('lead');
+        }
+        
+        if (selectedFilter === 'Design') {
+            return roleLower.includes('designer') || 
+                   roleLower.includes('artist') || 
+                   roleLower.includes('creative') ||
+                   roleLower.includes('ui') ||
+                   roleLower.includes('ux');
+        }
+        
+        if (selectedFilter === 'Sales') {
+            return roleLower.includes('sales') || 
+                   roleLower.includes('marketing') || 
+                   roleLower.includes('cmo') ||
+                   roleLower.includes('growth') ||
+                   roleLower.includes('business');
+        }
+        
+        return true;
+    });
+
     return (
         <div className="flex flex-col min-h-full pb-24 relative">
             {/* Background Decoration Gradient */}
@@ -599,27 +634,35 @@ export const Team = () => {
 
              {/* Filter Chips */}
             <section className="flex gap-2 px-4 pb-2 overflow-x-auto no-scrollbar mask-gradient">
-                <div className="flex h-8 shrink-0 items-center justify-center gap-x-2 rounded-lg bg-primary pl-3 pr-4 shadow-lg shadow-primary/20 cursor-pointer">
-                    <span className="material-symbols-outlined text-white text-[18px]">group</span>
-                    <p className="text-white text-sm font-semibold leading-normal">All</p>
+                <div 
+                    onClick={() => setSelectedFilter('All')}
+                    className={`flex h-8 shrink-0 items-center justify-center gap-x-2 rounded-lg pl-3 pr-4 cursor-pointer transition-colors ${selectedFilter === 'All' ? 'bg-primary shadow-lg shadow-primary/20' : 'bg-white dark:bg-[#2f2839] border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-[#3a3246]'}`}>
+                    <span className={`material-symbols-outlined text-[18px] ${selectedFilter === 'All' ? 'text-white' : 'text-slate-700 dark:text-gray-300'}`}>group</span>
+                    <p className={`text-sm font-semibold leading-normal ${selectedFilter === 'All' ? 'text-white' : 'text-slate-700 dark:text-gray-300 font-medium'}`}>All</p>
                 </div>
-                <div className="flex h-8 shrink-0 items-center justify-center gap-x-2 rounded-lg bg-white dark:bg-[#2f2839] border border-gray-200 dark:border-white/10 pl-3 pr-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-[#3a3246] transition-colors">
-                    <span className="material-symbols-outlined text-slate-700 dark:text-gray-300 text-[18px]">code</span>
-                    <p className="text-slate-700 dark:text-gray-300 text-sm font-medium leading-normal">Devs</p>
+                <div 
+                    onClick={() => setSelectedFilter('Devs')}
+                    className={`flex h-8 shrink-0 items-center justify-center gap-x-2 rounded-lg pl-3 pr-4 cursor-pointer transition-colors ${selectedFilter === 'Devs' ? 'bg-primary shadow-lg shadow-primary/20' : 'bg-white dark:bg-[#2f2839] border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-[#3a3246]'}`}>
+                    <span className={`material-symbols-outlined text-[18px] ${selectedFilter === 'Devs' ? 'text-white' : 'text-slate-700 dark:text-gray-300'}`}>code</span>
+                    <p className={`text-sm font-semibold leading-normal ${selectedFilter === 'Devs' ? 'text-white' : 'text-slate-700 dark:text-gray-300 font-medium'}`}>Devs</p>
                 </div>
-                <div className="flex h-8 shrink-0 items-center justify-center gap-x-2 rounded-lg bg-white dark:bg-[#2f2839] border border-gray-200 dark:border-white/10 pl-3 pr-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-[#3a3246] transition-colors">
-                    <span className="material-symbols-outlined text-slate-700 dark:text-gray-300 text-[18px]">palette</span>
-                    <p className="text-slate-700 dark:text-gray-300 text-sm font-medium leading-normal">Design</p>
+                <div 
+                    onClick={() => setSelectedFilter('Design')}
+                    className={`flex h-8 shrink-0 items-center justify-center gap-x-2 rounded-lg pl-3 pr-4 cursor-pointer transition-colors ${selectedFilter === 'Design' ? 'bg-primary shadow-lg shadow-primary/20' : 'bg-white dark:bg-[#2f2839] border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-[#3a3246]'}`}>
+                    <span className={`material-symbols-outlined text-[18px] ${selectedFilter === 'Design' ? 'text-white' : 'text-slate-700 dark:text-gray-300'}`}>palette</span>
+                    <p className={`text-sm font-semibold leading-normal ${selectedFilter === 'Design' ? 'text-white' : 'text-slate-700 dark:text-gray-300 font-medium'}`}>Design</p>
                 </div>
-                <div className="flex h-8 shrink-0 items-center justify-center gap-x-2 rounded-lg bg-white dark:bg-[#2f2839] border border-gray-200 dark:border-white/10 pl-3 pr-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-[#3a3246] transition-colors">
-                    <span className="material-symbols-outlined text-slate-700 dark:text-gray-300 text-[18px]">campaign</span>
-                    <p className="text-slate-700 dark:text-gray-300 text-sm font-medium leading-normal">Sales</p>
+                <div 
+                     onClick={() => setSelectedFilter('Sales')}
+                    className={`flex h-8 shrink-0 items-center justify-center gap-x-2 rounded-lg pl-3 pr-4 cursor-pointer transition-colors ${selectedFilter === 'Sales' ? 'bg-primary shadow-lg shadow-primary/20' : 'bg-white dark:bg-[#2f2839] border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-[#3a3246]'}`}>
+                    <span className={`material-symbols-outlined text-[18px] ${selectedFilter === 'Sales' ? 'text-white' : 'text-slate-700 dark:text-gray-300'}`}>campaign</span>
+                    <p className={`text-sm font-semibold leading-normal ${selectedFilter === 'Sales' ? 'text-white' : 'text-slate-700 dark:text-gray-300 font-medium'}`}>Sales</p>
                 </div>
             </section>
 
             {/* Employee List */}
             <main className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 pb-24">
-                {employees.map(emp => (
+                {filteredEmployees.map(emp => (
                     <div
                         key={emp.id}
                         onClick={() => setSelectedMemberId(emp.id)}
