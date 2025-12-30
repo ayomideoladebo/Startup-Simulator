@@ -1,5 +1,6 @@
 import React from 'react';
 import { Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
+import { useGameState } from "./hooks/useGameState";    // Added import
 import { MobileContainer } from "./components/layout/MobileContainer";
 import { TopHeader } from "./components/layout/TopHeader";
 import { BottomNav } from "./components/layout/BottomNav";
@@ -8,6 +9,7 @@ import { Dashboard } from "./pages/dashboard/Dashboard";
 import { Onboarding } from "./pages/onboarding/Onboarding";
 import { NicheSelection } from "./pages/onboarding/NicheSelection";
 import { Product } from "./pages/product/Product";
+import { ProductResults } from "./pages/product/ProductResults";
 import { Team } from "./pages/team/Team";
 import { Menu } from "./pages/menu/Menu";
 import { Social } from "./pages/social/Social";
@@ -42,6 +44,9 @@ const GameLayout = () => {
     const location = useLocation();
     const isDashboard = location.pathname === '/dashboard';
     const [isBottomNavVisible, setBottomNavVisible] = React.useState(true);
+    
+    // Fetch Global Game State for the Header (and eventually Sidebar)
+    const { company, loading } = useGameState();
 
     // Reset bottom nav visibility on route change (in case a page forgets to reset it)
     React.useEffect(() => {
@@ -53,7 +58,14 @@ const GameLayout = () => {
             <Sidebar />
             <div className="flex-1 min-w-0">
                 <MobileContainer>
-                    {isDashboard && <div className="md:hidden"><TopHeader companyName="Neuromancer Inc." stage="Series A" /></div>}
+                    {isDashboard && (
+                        <div className="md:hidden">
+                            <TopHeader 
+                                companyName={loading ? "Loading..." : (company?.name || "My Startup")} 
+                                stage={loading ? "..." : (company?.stage || "Pre-Seed")} 
+                            />
+                        </div>
+                    )}
                     {isDashboard && <div className="hidden md:flex sticky top-0 z-20 bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-md px-6 py-4 border-b border-gray-200 dark:border-white/5 justify-between items-center">
                         <h2 className="text-xl font-bold text-slate-900 dark:text-white">Dashboard</h2>
                         <div className="flex items-center gap-3">
@@ -99,6 +111,7 @@ export const AppRoutes = () => {
                 <Route path="/product" element={<Product />} />
                 <Route path="/product/pricing" element={<Pricing />} />
                 <Route path="/product/pricing/new" element={<CreateTier />} />
+                <Route path="/product/results/:featureId" element={<ProductResults />} /> 
                 <Route path="/team" element={<Team />} />
                 <Route path="/menu" element={<Menu />} />
                 <Route path="/finance" element={<Finance />} />

@@ -5,9 +5,14 @@ interface HiringConfirmationProps {
     candidate: Candidate;
     onViewProfile: () => void;
     onReturn: () => void;
+    companyCash: number;
+    currentTeamSize: number;
 }
 
-export const HiringConfirmation = ({ candidate, onViewProfile, onReturn }: HiringConfirmationProps) => {
+export const HiringConfirmation = ({ candidate, onViewProfile, onReturn, companyCash, currentTeamSize }: HiringConfirmationProps) => {
+    // Calculate new monthly burn impact
+    const monthlyCost = candidate.salary_ask ? Math.round(candidate.salary_ask / 12) : 0;
+    
     return (
         <div className="fixed inset-0 z-[100] bg-background-light dark:bg-background-dark flex flex-col min-h-full overflow-y-auto no-scrollbar animate-in fade-in zoom-in-95 duration-300">
             <div className="sticky top-0 z-50 flex items-center bg-background-light dark:bg-background-dark p-4 pb-2 justify-between">
@@ -23,7 +28,10 @@ export const HiringConfirmation = ({ candidate, onViewProfile, onReturn }: Hirin
             </div>
 
             <div className="flex flex-col items-center px-6 pt-6 pb-24 text-center relative z-10 flex-grow justify-center">
-                {/* Background effect */}
+                
+                {/* ... (background and header omitted for brevity, keeping existing structure) ... */}
+                
+                 {/* Background effect */}
                 <div className="absolute inset-0 z-[-1] opacity-50 bg-[radial-gradient(circle_at_50%_50%,_rgba(109,19,236,0.15)_0%,_transparent_50%)]"></div>
 
                 <div className="mb-6 relative">
@@ -72,8 +80,12 @@ export const HiringConfirmation = ({ candidate, onViewProfile, onReturn }: Hirin
                                 </div>
                             </div>
                             <div className="text-right">
-                                <div className="text-sm font-bold text-slate-900 dark:text-white">$1.05M</div>
-                                <div className="text-xs font-bold text-red-500">-$12k/mo</div>
+                                <div className="text-sm font-bold text-slate-900 dark:text-white">
+                                    {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact' }).format(companyCash)}
+                                </div>
+                                <div className="text-xs font-bold text-red-500">
+                                    -${(monthlyCost / 1000).toFixed(1)}k/mo
+                                </div>
                             </div>
                         </div>
                         <div className="flex justify-between items-center p-4">
@@ -87,7 +99,7 @@ export const HiringConfirmation = ({ candidate, onViewProfile, onReturn }: Hirin
                                 </div>
                             </div>
                             <div className="text-right">
-                                <div className="text-sm font-bold text-slate-900 dark:text-white">1 Open</div>
+                                <div className="text-sm font-bold text-slate-900 dark:text-white">{10 - currentTeamSize} Open</div>
                                 <div className="text-xs font-bold text-blue-500">-1 Slot</div>
                             </div>
                         </div>

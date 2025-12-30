@@ -1,16 +1,149 @@
 
+import { useGameState } from '../../hooks/useGameState';
+import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { supabase } from '../../lib/supabase';
+
 export const Dashboard = () => {
+    const { company, gameState, competitors, marketTrends, loading, error } = useGameState();
+    const navigate = useNavigate();
+    const [processing, setProcessing] = useState(false);
+    const [monthlyBurn, setMonthlyBurn] = useState(0);
+    const [teamMorale, setTeamMorale] = useState(100);
+    const [avgBurnout, setAvgBurnout] = useState(0);
+    const [employeeCount, setEmployeeCount] = useState(0);
+    const [productQuality, setProductQuality] = useState(0);
+    const [launchedFeatures, setLaunchedFeatures] = useState(0);
+
+    // Fetch employees and features to calculate burn rate and internal health
+    useEffect(() => {
+        const fetchDashboardData = async () => {
+            if (!company?.id) return;
+            
+            // Fetch employee data (salaries, morale, burnout)
+            const { data: employees } = await supabase
+                .from('employees')
+                .select('salary, morale, burnout')
+                .eq('company_id', company.id);
+            
+            // Fetch feature data (maintenance costs, quality for LIVE features)
+            const { data: launchedFeaturesData } = await supabase
+                .from('product_features')
+                .select('maintenance_cost, market_fit_score, innovation_score')
+                .eq('company_id', company.id)
+                .eq('status', 'live');
+            
+            // Calculate monthly salary burn (yearly / 12)
+            const totalYearlySalary = employees?.reduce((acc, emp) => acc + (emp.salary || 0), 0) || 0;
+            const monthlySalaryBurn = Math.round(totalYearlySalary / 12);
+            
+            // Sum all feature maintenance costs (already monthly)
+            const totalMaintenanceCost = launchedFeaturesData?.reduce((acc, feat) => acc + (feat.maintenance_cost || 0), 0) || 0;
+            
+            // Total monthly burn = salaries + maintenance
+            setMonthlyBurn(monthlySalaryBurn + totalMaintenanceCost);
+            
+            // Calculate team morale (average of all employees)
+            if (employees && employees.length > 0) {
+                const avgMorale = Math.round(employees.reduce((acc, emp) => acc + (emp.morale || 50), 0) / employees.length);
+                const avgBurn = Math.round(employees.reduce((acc, emp) => acc + (emp.burnout || 0), 0) / employees.length);
+                setTeamMorale(avgMorale);
+                setAvgBurnout(avgBurn);
+                setEmployeeCount(employees.length);
+            }
+            
+            // Calculate product quality (average of feature scores)
+            if (launchedFeaturesData && launchedFeaturesData.length > 0) {
+                const avgQuality = Math.round(
+                    launchedFeaturesData.reduce((acc, feat) => 
+                        acc + ((feat.market_fit_score || 50) + (feat.innovation_score || 50)) / 2, 0
+                    ) / launchedFeaturesData.length
+                );
+                setProductQuality(avgQuality);
+                setLaunchedFeatures(launchedFeaturesData.length);
+            }
+        };
+        fetchDashboardData();
+    }, [company?.id]);
+
+    const handleAdvanceWeek = async () => {
+        setProcessing(true);
+        try {
+            const { data, error } = await supabase.functions.invoke('advance-day', {
+                body: { company_id: company.id }
+            });
+            
+            if (error) throw error;
+
+
+
+            // Force reload or query invalidation would be better here, 
+            // but for now a simple reload works to fetch fresh data
+            window.location.reload(); 
+        } catch (err) {
+            console.error("Failed to advance week:", err);
+            let msg = "Unknown error";
+            if (err instanceof Error) msg = err.message;
+            if ((err as any).context && (err as any).context.json) {
+                 const body = await (err as any).context.json().catch(() => ({}));
+                 if (body.error) msg = body.error;
+            }
+            alert(`Failed to advance week: ${msg}`);
+        } finally {
+            setProcessing(false);
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-full pt-20">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+        );
+    }
+
+    if (error || !company) {
+         return (
+            <div className="p-6 text-center">
+                <p className="text-red-400 mb-4">{error || "No company found"}</p>
+                <button onClick={() => navigate('/niche-selection')} className="bg-primary px-4 py-2 rounded text-white">Create Startup</button>
+            </div>
+        );
+    }
+
+    // Calculate formatted values
+    const mrr = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact' }).format(gameState.mrr);
+    const funds = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact' }).format(company.cash);
+    const burn = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact' }).format(monthlyBurn);
+    
+    // Sort competitors including player for leaderboard
+    const allCompanies = [...competitors, { ...company, is_me: true }];
+    // Sort by "Valuation" (Approximated by Cash * 10 or just Cash for now)
+    allCompanies.sort((a, b) => b.cash - a.cash);
+
     return (
         <div className="flex flex-col gap-6 pb-24 no-scrollbar">
             {/* Date & Status */}
             <div className="px-4 py-4 flex justify-between items-center bg-gradient-to-b from-background-dark to-transparent">
                 <div className="flex flex-col">
-                    <span className="text-white/50 text-xs font-medium uppercase tracking-widest">Turn 42</span>
-                    <span className="text-white text-sm font-bold">Month 14</span>
+                    <span className="text-white/50 text-xs font-medium uppercase tracking-widest">Turn {gameState.turn_count}</span>
+                    <h2 className="text-xl font-bold text-slate-800 dark:text-white">Day {gameState?.current_day || 1}</h2>
                 </div>
                 <div className="flex items-center gap-2">
                     <span className="h-2 w-2 rounded-full bg-accent-green animate-pulse"></span>
-                    <span className="text-accent-green text-xs font-bold uppercase tracking-wider">Phase: Scaling</span>
+                    <span className="text-accent-green text-xs font-bold uppercase tracking-wider">{company.stage}</span>
+                    <button 
+                        onClick={handleAdvanceWeek}
+                        disabled={processing}
+                        className="ml-4 bg-primary hover:bg-primary/90 disabled:opacity-50 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-lg shadow-primary/20 transition-all active:scale-95 flex items-center gap-1"
+                    >
+                        {processing ? (
+                           <span className="animate-spin h-3 w-3 border-b-2 border-white rounded-full"></span> 
+                        ) : (
+                            <span className="material-symbols-outlined text-[14px]">skip_next</span>
+                        )}
+                        Next Day
+                    </button>
                 </div>
             </div>
 
@@ -26,8 +159,8 @@ export const Dashboard = () => {
                             </span>
                         </div>
                         <div>
-                            <p className="text-white text-2xl font-bold tracking-tight font-mono">$45.2k</p>
-                            <p className="text-white/40 text-[10px] mt-1">Target: $50k</p>
+                            <p className="text-white text-2xl font-bold tracking-tight font-mono">{mrr}</p>
+                            <p className="text-white/40 text-[10px] mt-1">Target: $10k</p>
                         </div>
                     </div>
                     <div className="bg-card-dark border border-accent-red/30 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden">
@@ -39,7 +172,7 @@ export const Dashboard = () => {
                             </span>
                         </div>
                         <div>
-                            <p className="text-white text-2xl font-bold tracking-tight font-mono">5 Mo</p>
+                            <p className="text-white text-2xl font-bold tracking-tight font-mono">{funds}</p>
                             <div className="w-full bg-white/10 h-1.5 rounded-full mt-2 overflow-hidden">
                                 <div className="bg-accent-red h-full w-[25%] rounded-full"></div>
                             </div>
@@ -55,9 +188,9 @@ export const Dashboard = () => {
                     <div className="bg-card-dark border border-card-border rounded-xl p-4 flex flex-col gap-1">
                         <div className="flex items-center gap-2 mb-1">
                             <span className="material-symbols-outlined text-white/60 text-[18px]">group</span>
-                            <p className="text-white/60 text-xs font-medium">Total Users</p>
+                            <p className="text-white/60 text-xs font-medium">Customers</p>
                         </div>
-                        <p className="text-white text-lg font-bold">12,405</p>
+                        <p className="text-white text-lg font-bold">{gameState.customers.toLocaleString()}</p>
                         <p className="text-accent-green text-[10px] font-medium">+845 this mo</p>
                     </div>
                     <div className="bg-card-dark border border-card-border rounded-xl p-4 flex flex-col gap-1">
@@ -71,9 +204,9 @@ export const Dashboard = () => {
                     <div className="bg-card-dark border border-card-border rounded-xl p-4 flex flex-col gap-1">
                         <div className="flex items-center gap-2 mb-1">
                             <span className="material-symbols-outlined text-accent-red text-[18px]">local_fire_department</span>
-                            <p className="text-white/60 text-xs font-medium">Burn Rate</p>
+                            <p className="text-white/60 text-xs font-medium">Burn (Est)</p>
                         </div>
-                        <p className="text-white text-lg font-bold">$8.5k</p>
+                        <p className="text-white text-lg font-bold">{burn}</p>
                         <p className="text-accent-red text-[10px] font-medium">+2.1% (Hiring)</p>
                     </div>
                     <div className="bg-card-dark border border-card-border rounded-xl p-4 flex flex-col gap-1">
@@ -81,7 +214,7 @@ export const Dashboard = () => {
                             <span className="material-symbols-outlined text-white/60 text-[18px]">person_remove</span>
                             <p className="text-white/60 text-xs font-medium">Churn</p>
                         </div>
-                        <p className="text-white text-lg font-bold">4.2%</p>
+                        <p className="text-white text-lg font-bold">{gameState.churn_rate}%</p>
                         <p className="text-white/40 text-[10px] font-medium">Sector Avg: 5.0%</p>
                     </div>
                 </div>
@@ -93,7 +226,7 @@ export const Dashboard = () => {
                     <div className="flex justify-between items-end mb-4">
                         <div>
                             <p className="text-white/60 text-xs font-semibold mb-1">Revenue Trend</p>
-                            <h3 className="text-xl font-bold text-white">$45,230</h3>
+                            <h3 className="text-xl font-bold text-white">{mrr}</h3>
                         </div>
                         <div className="flex gap-2">
                             <span className="px-2 py-1 rounded bg-primary text-white text-[10px] font-bold">6M</span>
@@ -130,17 +263,32 @@ export const Dashboard = () => {
                     <div className="flex flex-col gap-2">
                         <div className="flex justify-between items-center">
                             <div className="flex items-center gap-2">
-                                <span className="material-symbols-outlined text-white/70 text-[16px]">sentiment_neutral</span>
+                                <span className={`material-symbols-outlined text-[16px] ${teamMorale >= 70 ? 'text-accent-green' : teamMorale >= 40 ? 'text-yellow-500' : 'text-accent-red'}`}>
+                                    {teamMorale >= 70 ? 'sentiment_satisfied' : teamMorale >= 40 ? 'sentiment_neutral' : 'sentiment_dissatisfied'}
+                                </span>
                                 <span className="text-sm text-white font-medium">Team Morale</span>
                             </div>
-                            <span className="text-xs text-white/50 font-mono">45/100</span>
+                            <span className="text-xs text-white/50 font-mono">{teamMorale}/100</span>
                         </div>
                         <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden">
-                            <div className="h-full w-[45%] bg-gradient-to-r from-accent-red via-yellow-500 to-accent-green rounded-full relative">
+                            <div 
+                                className={`h-full rounded-full relative transition-all duration-500 ${
+                                    teamMorale >= 70 ? 'bg-accent-green' : teamMorale >= 40 ? 'bg-yellow-500' : 'bg-accent-red'
+                                }`}
+                                style={{ width: `${teamMorale}%` }}
+                            >
                                 <div className="absolute right-0 top-0 bottom-0 w-0.5 bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]"></div>
                             </div>
                         </div>
-                        <p className="text-[10px] text-white/40 italic">Dev team is overworked. Consider hiring.</p>
+                        <p className="text-[10px] text-white/40 italic">
+                            {avgBurnout > 60 
+                                ? '⚠️ High burnout risk! Consider vacations.' 
+                                : employeeCount < 3 
+                                    ? 'Small team - consider hiring.' 
+                                    : teamMorale >= 80 
+                                        ? '✓ Team is happy and productive!' 
+                                        : 'Team morale could be improved.'}
+                        </p>
                     </div>
                     <div className="h-px bg-white/5 w-full"></div>
                     <div className="flex flex-col gap-2">
@@ -149,15 +297,25 @@ export const Dashboard = () => {
                                 <span className="material-symbols-outlined text-primary text-[16px]">diamond</span>
                                 <span className="text-sm text-white font-medium">Product Quality</span>
                             </div>
-                            <span className="text-xs text-primary font-bold">Beta v0.9</span>
+                            <span className="text-xs text-primary font-bold">
+                                {launchedFeatures > 0 ? `${launchedFeatures} Feature${launchedFeatures > 1 ? 's' : ''} Live` : 'No features yet'}
+                            </span>
                         </div>
                         <div className="flex gap-1">
-                            <span className="material-symbols-outlined text-primary text-[16px] fill-current">star</span>
-                            <span className="material-symbols-outlined text-primary text-[16px] fill-current">star</span>
-                            <span className="material-symbols-outlined text-primary text-[16px] fill-current">star</span>
-                            <span className="material-symbols-outlined text-white/20 text-[16px]">star</span>
-                            <span className="material-symbols-outlined text-white/20 text-[16px]">star</span>
+                            {[1, 2, 3, 4, 5].map((star) => (
+                                <span 
+                                    key={star}
+                                    className={`material-symbols-outlined text-[16px] ${
+                                        productQuality >= star * 20 ? 'text-primary fill-current' : 'text-white/20'
+                                    }`}
+                                >
+                                    star
+                                </span>
+                            ))}
                         </div>
+                        <p className="text-[10px] text-white/40">
+                            {productQuality > 0 ? `Quality Score: ${productQuality}/100` : 'Launch features to see quality score'}
+                        </p>
                     </div>
                 </div>
             </div>
@@ -168,39 +326,26 @@ export const Dashboard = () => {
                 <div className="bg-card-dark border border-card-border rounded-xl p-0 overflow-hidden mb-4">
                     <div className="p-4 border-b border-card-border/50 bg-white/5 flex justify-between items-center">
                         <span className="text-sm font-semibold text-white">Niche Leaderboard</span>
-                        <span className="text-[10px] bg-primary/20 text-primary px-2 py-0.5 rounded border border-primary/20">AI Analytics</span>
+                        <span className="text-[10px] bg-primary/20 text-primary px-2 py-0.5 rounded border border-primary/20">{company.niche}</span>
                     </div>
                     <div className="flex flex-col">
-                        <div className="flex items-center p-3 gap-3 border-b border-card-border/30">
-                            <span className="text-white/40 font-mono text-xs w-4">01</span>
-                            <div className="h-8 w-8 rounded bg-blue-500/20 flex items-center justify-center text-blue-400 font-bold text-xs border border-blue-500/30">CD</div>
-                            <div className="flex-1">
-                                <p className="text-white text-xs font-medium">CyberDyne</p>
-                                <p className="text-white/30 text-[10px]">$89k MRR</p>
+                        {allCompanies.slice(0, 5).map((comp: any, idx: number) => (
+                             <div key={comp.id} className={`flex items-center p-3 gap-3 ${comp.is_me ? 'bg-primary/10 border-l-2 border-l-primary' : 'border-b border-card-border/30'}`}>
+                                <span className={`font-mono text-xs w-4 ${comp.is_me ? 'text-primary font-bold' : 'text-white/40'}`}>{idx + 1}</span>
+                                <div className={`h-8 w-8 rounded flex items-center justify-center font-bold text-xs border ${comp.is_me ? 'bg-primary text-white shadow-[0_0_10px_rgba(109,19,236,0.4)]' : 'bg-blue-500/20 text-blue-400 border-blue-500/30'}`}>
+                                    {comp.name.substring(0, 2).toUpperCase()}
+                                </div>
+                                <div className="flex-1">
+                                    <p className={`text-xs ${comp.is_me ? 'text-white font-bold' : 'text-white font-medium'}`}>{comp.name} {comp.is_me && '(You)'}</p>
+                                    <p className={`${comp.is_me ? 'text-primary-glow' : 'text-white/30'} text-[10px]`}>
+                                        ${(comp.cash).toLocaleString()} Cash
+                                    </p>
+                                </div>
                             </div>
-                            <span className="material-symbols-outlined text-accent-green text-[16px]">trending_up</span>
-                        </div>
-                        <div className="flex items-center p-3 gap-3 bg-primary/10 border-l-2 border-l-primary">
-                            <span className="text-primary font-mono text-xs w-4 font-bold">02</span>
-                            <div className="h-8 w-8 rounded bg-primary flex items-center justify-center text-white font-bold text-xs shadow-[0_0_10px_rgba(109,19,236,0.4)]">NI</div>
-                            <div className="flex-1">
-                                <p className="text-white text-xs font-bold">Neuromancer (You)</p>
-                                <p className="text-primary-glow text-[10px]">$45.2k MRR</p>
-                            </div>
-                            <span className="material-symbols-outlined text-accent-green text-[16px]">trending_flat</span>
-                        </div>
-                        <div className="flex items-center p-3 gap-3">
-                            <span className="text-white/40 font-mono text-xs w-4">03</span>
-                            <div className="h-8 w-8 rounded bg-orange-500/20 flex items-center justify-center text-orange-400 font-bold text-xs border border-orange-500/30">OM</div>
-                            <div className="flex-1">
-                                <p className="text-white text-xs font-medium">OmniCorp</p>
-                                <p className="text-white/30 text-[10px]">$32k MRR</p>
-                            </div>
-                            <span className="material-symbols-outlined text-accent-red text-[16px]">trending_down</span>
-                        </div>
-                    </div>
+                        ))}
                 </div>
             </div>
         </div>
+    </div>
     );
 };

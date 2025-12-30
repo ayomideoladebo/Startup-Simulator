@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
 import { MobileContainer } from '../../components/layout/MobileContainer';
+import { supabase } from '../../lib/supabase';
 
 interface NicheOption {
     id: string;
@@ -87,9 +88,72 @@ export const NicheSelection = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [startupName, setStartupName] = useState('');
 
-    const handleInitialize = () => {
-        if (!startupName.trim()) return; // Prevent empty names
-        navigate('/dashboard');
+    const [loading, setLoading] = useState(false);
+
+    const handleInitialize = async () => {
+        if (!startupName.trim()) return;
+        setLoading(true);
+
+        try {
+            // Get current user
+            const { data: { user } } = await supabase.auth.getUser();
+            
+            if (!user) {
+                navigate('/login');
+                return;
+            }
+
+            // 1. Create Company
+            const { data: company, error: companyError } = await supabase
+                .from('companies')
+                .insert({
+                    owner_id: user.id,
+                    name: startupName,
+                    niche: selectedNiche,
+                    is_player: true,
+                    cash: 100000, // Initial Pre-Seed Funding
+                    stage: 'Pre-Seed'
+                })
+                .select()
+                .single();
+
+            if (companyError) throw companyError;
+
+            // 2. Initialize Game State (Week 1)
+            const { error: stateError } = await supabase
+                .from('game_state')
+                .insert({
+                    company_id: company.id,
+                    current_week: 1,
+                    current_month: 1,
+                    mrr: 0,
+                    customers: 0,
+                    team_morale: 100
+                });
+
+            if (stateError) throw stateError;
+
+            // 3. Generate World (AI Rivals & Trends) using Edge Function
+            // We don't await this if we want speed, BUT for a better UX (showing them appear), we should await.
+            // Let's await to ensure Dashboard has data.
+            const { error: funcError } = await supabase.functions.invoke('init-game-world', {
+                body: { company_id: company.id }
+            });
+
+            if (funcError) {
+                console.error("World gen failed (non-fatal):", funcError);
+                // We proceed anyway, maybe retry later
+            }
+
+            // Success!
+            navigate('/dashboard');
+
+        } catch (error) {
+            console.error('Error initializing game:', error);
+            // TODO: Show nice error toast
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -234,10 +298,10 @@ export const NicheSelection = () => {
 
                             <button
                                 onClick={handleInitialize}
-                                disabled={!startupName.trim()}
+                                disabled={!startupName.trim() || loading}
                                 className="w-full h-12 bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] transition-all rounded-xl shadow-lg shadow-primary/30 flex items-center justify-center gap-2 group mt-2"
                             >
-                                <span className="text-white font-bold tracking-wide">Launch 🚀</span>
+                                <span className="text-white font-bold tracking-wide">{loading ? 'Generating World...' : 'Launch 🚀'}</span>
                             </button>
                         </div>
                     </div>
