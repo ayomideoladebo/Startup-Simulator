@@ -4,7 +4,7 @@ import { useGameState } from '../../hooks/useGameState';
 
 interface InitiateHeadhuntProps {
     onBack: () => void;
-    onStart: () => void;
+    onStart: (role: string, skill: number) => void;
 }
 
 export const InitiateHeadhunt = ({ onBack, onStart }: InitiateHeadhuntProps) => {
@@ -30,7 +30,7 @@ export const InitiateHeadhunt = ({ onBack, onStart }: InitiateHeadhuntProps) => 
             // Deduct cost (Client side for speed, ideally backend)
             await supabase.from('companies').update({ cash: company.cash - 5000 }).eq('id', company.id);
 
-            onStart(); // Go to status/list view
+            onStart(selectedRole, skillLevel); // Go to status/list view
         } catch (err) {
             console.error('Headhunt failed:', err);
             alert('Failed to start headhunt');

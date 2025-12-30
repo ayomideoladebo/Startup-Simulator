@@ -31,6 +31,7 @@ interface RecruitmentProps {
 export const Recruitment = ({ onBack, onHire }: RecruitmentProps) => {
     const { company } = useGameState();
     const [view, setView] = useState<'list' | 'initiate_headhunt' | 'headhunt_status'>('list');
+    const [headhuntRole, setHeadhuntRole] = useState<string>('');
     const [candidates, setCandidates] = useState<Candidate[]>([]);
     const [loading, setLoading] = useState(false);
 
@@ -100,13 +101,24 @@ export const Recruitment = ({ onBack, onHire }: RecruitmentProps) => {
     }, [company, view]); // Re-fetch when view changes (e.g. returning from headhunt)
 
     if (view === 'initiate_headhunt') {
-        return <InitiateHeadhunt onBack={() => setView('list')} onStart={() => setView('headhunt_status')} />;
+        return <InitiateHeadhunt 
+            onBack={() => setView('list')} 
+            onStart={(role) => { 
+                setHeadhuntRole(role); 
+                setView('headhunt_status'); 
+            }} 
+        />;
     }
 
     if (view === 'headhunt_status') {
         // We'll treat "Status" as just a quick loading screen or success screen for now, then redirect to list
         // Actually HeadhuntStatus likely has a "View Candidates" button
-        return <HeadhuntStatus onBack={() => setView('list')} onViewCandidates={() => setView('list')} />;
+        return <HeadhuntStatus 
+            onBack={() => setView('list')} 
+            onViewCandidates={() => setView('list')} 
+            candidates={candidates}
+            role={headhuntRole}
+        />;
     }
 
     return (

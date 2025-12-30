@@ -30,6 +30,8 @@ const formatNumber = (num: number) => {
 
 export const Product = () => {
     const [view, setView] = useState<'list' | 'detail'>('list');
+    const [selectedCategory, setSelectedCategory] = useState<string>('core');
+    const [sortBy, setSortBy] = useState<'default' | 'impact' | 'cost'>('default');
     const [isNewFeatureModalOpen, setIsNewFeatureModalOpen] = useState(false);
     const { setBottomNavVisible } = useOutletContext<GameLayoutContextType>();
 
@@ -138,9 +140,23 @@ export const Product = () => {
             setNewFeatureName('');
             setDevPoints(100);
             setBudget(10000);
+            setSelectedCategory('core');
         } catch (e: any) {
             console.error("Failed to create feature:", e);
-            alert(e.message || "Failed to create feature");
+            let msg = e.message || "Failed to create feature";
+            
+            // Parse Supabase Edge Function error body if available
+            if (e.context && typeof e.context.json === 'function') {
+                try {
+                    const body = await e.context.json();
+                    if (body && body.error) {
+                        msg = body.error;
+                    }
+                } catch (jsonErr) {
+                    // unexpected json parse error, ignore
+                }
+            }
+            alert(msg);
         } finally {
             setCreating(false);
         }
@@ -395,58 +411,83 @@ export const Product = () => {
             {/* Category Tabs */}
             <section className="border-b border-slate-200 dark:border-white/10 sticky top-[60px] z-40 bg-background-light dark:bg-background-dark">
                 <div className="flex overflow-x-auto no-scrollbar px-4 gap-6">
-                    <button className="flex flex-col items-center gap-2 pb-3 pt-2 min-w-[60px] border-b-[3px] border-primary group">
-                        <span className="material-symbols-outlined text-primary group-hover:scale-110 transition-transform filled">deployed_code</span>
-                        <span className="text-xs font-bold text-primary tracking-wide">Core</span>
-                    </button>
-                    <button className="flex flex-col items-center gap-2 pb-3 pt-2 min-w-[60px] border-b-[3px] border-transparent group">
-                        <span className="material-symbols-outlined text-slate-400 group-hover:text-slate-200 transition-colors">rocket_launch</span>
-                        <span className="text-xs font-bold text-slate-400 group-hover:text-slate-200 tracking-wide">Growth</span>
-                    </button>
-                    <button className="flex flex-col items-center gap-2 pb-3 pt-2 min-w-[60px] border-b-[3px] border-transparent group">
-                        <span className="material-symbols-outlined text-slate-400 group-hover:text-slate-200 transition-colors">design_services</span>
-                        <span className="text-xs font-bold text-slate-400 group-hover:text-slate-200 tracking-wide">UX</span>
-                    </button>
-                    <button className="flex flex-col items-center gap-2 pb-3 pt-2 min-w-[60px] border-b-[3px] border-transparent group">
-                        <span className="material-symbols-outlined text-slate-400 group-hover:text-slate-200 transition-colors">database</span>
-                        <span className="text-xs font-bold text-slate-400 group-hover:text-slate-200 tracking-wide">Infra</span>
-                    </button>
-                    <button className="flex flex-col items-center gap-2 pb-3 pt-2 min-w-[60px] border-b-[3px] border-transparent group relative">
-                        <span className="material-symbols-outlined text-slate-400 group-hover:text-slate-200 transition-colors">psychology</span>
-                        <span className="text-xs font-bold text-slate-400 group-hover:text-slate-200 tracking-wide">AI</span>
-                        <span className="absolute top-1 right-1 size-2 bg-primary rounded-full animate-pulse"></span>
-                    </button>
+                    {[
+                        { id: 'core', label: 'Core', icon: 'deployed_code' },
+                        { id: 'growth', label: 'Growth', icon: 'rocket_launch' },
+                        { id: 'ux', label: 'UX', icon: 'design_services' },
+                        { id: 'infra', label: 'Infra', icon: 'database' },
+                        { id: 'ai', label: 'AI', icon: 'psychology' }
+                    ].map(cat => (
+                        <button 
+                            key={cat.id}
+                            onClick={() => setSelectedCategory(cat.id)}
+                            className={`flex flex-col items-center gap-2 pb-3 pt-2 min-w-[60px] border-b-[3px] group relative transition-colors ${selectedCategory === cat.id ? 'border-primary' : 'border-transparent'}`}
+                        >
+                            <span className={`material-symbols-outlined transition-transform ${selectedCategory === cat.id ? 'text-primary filled scale-110' : 'text-slate-400 group-hover:text-slate-200'}`}>
+                                {cat.icon}
+                            </span>
+                            <span className={`text-xs font-bold tracking-wide transition-colors ${selectedCategory === cat.id ? 'text-primary' : 'text-slate-400 group-hover:text-slate-200'}`}>
+                                {cat.label}
+                            </span>
+                            {cat.id === 'ai' && <span className="absolute top-1 right-1 size-2 bg-primary rounded-full animate-pulse"></span>}
+                        </button>
+                    ))}
                 </div>
             </section>
 
             {/* Filter/Sort Chips */}
             <section className="py-4 px-4 overflow-x-auto no-scrollbar">
                 <div className="flex gap-3">
-                    <button className="flex items-center gap-2 px-4 py-2 rounded-full bg-primary text-white text-xs font-medium whitespace-nowrap shadow-lg shadow-primary/20">
+                    <button 
+                        onClick={() => setSelectedCategory('all')}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap shadow-lg transition-colors ${selectedCategory === 'all' ? 'bg-primary text-white shadow-primary/20' : 'bg-white dark:bg-card-dark border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5'}`}
+                    >
                         <span>All Features</span>
                     </button>
-                    <button className="flex items-center gap-2 px-4 py-2 rounded-full bg-white dark:bg-card-dark border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 text-xs font-medium whitespace-nowrap hover:bg-slate-50 dark:hover:bg-white/5">
-                        <span className="material-symbols-outlined text-base">trending_up</span>
-                        <span>Highest Impact</span>
+                    <button 
+                        onClick={() => setSortBy(sortBy === 'impact' ? 'default' : 'impact')}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-colors ${sortBy === 'impact' ? 'bg-primary/10 border-primary text-primary' : 'bg-white dark:bg-card-dark border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5'}`}
+                    >
+                        <span className={`material-symbols-outlined text-xs ${sortBy === 'impact' ? 'filled' : ''}`}>trending_up</span>
+                        <span className="text-xs font-medium whitespace-nowrap">Highest Impact</span>
                     </button>
-                    <button className="flex items-center gap-2 px-4 py-2 rounded-full bg-white dark:bg-card-dark border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 text-xs font-medium whitespace-nowrap hover:bg-slate-50 dark:hover:bg-white/5">
-                        <span className="material-symbols-outlined text-base">savings</span>
-                        <span>Lowest Cost</span>
+                    <button 
+                        onClick={() => setSortBy(sortBy === 'cost' ? 'default' : 'cost')}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-colors ${sortBy === 'cost' ? 'bg-primary/10 border-primary text-primary' : 'bg-white dark:bg-card-dark border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5'}`}
+                    >
+                        <span className={`material-symbols-outlined text-xs ${sortBy === 'cost' ? 'filled' : ''}`}>savings</span>
+                        <span className="text-xs font-medium whitespace-nowrap">Lowest Cost</span>
                     </button>
                 </div>
             </section>
 
             {/* Feature List */}
-            {/* Feature List */}
-            <main className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 px-4 pb-24">
-                {loading && <div className="text-white text-center py-10 col-span-full">Loading roadmap...</div>}
-                {!loading && features.length === 0 && (
-                    <div className="text-white/50 text-center py-10 col-span-full border-2 border-dashed border-white/10 rounded-xl">
-                        No features yet. Start building!
-                    </div>
-                )}
+            {loading ? (
+                <div className="flex flex-col gap-4 p-4">
+                     <p className="text-center text-slate-400 text-sm py-10">Loading roadmap...</p>
+                </div>
+            ) : (
+                <main className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 px-4 pb-32">
+                 {/* Empty State */}
+                 {features.filter(f => selectedCategory === 'all' || f.feature_type === selectedCategory).length === 0 && (
+                     <div className="text-center py-10 opacity-60">
+                         <span className="material-symbols-outlined text-4xl mb-2">search_off</span>
+                         <p>No features found in this category.</p>
+                     </div>
+                 )}
                 
-                {features.map((feat) => {
+                {features
+                    .filter(f => selectedCategory === 'all' || f.feature_type === selectedCategory)
+                    .sort((a, b) => {
+                        if (sortBy === 'impact') {
+                            return (b.market_fit_score || 0) - (a.market_fit_score || 0);
+                        }
+                        if (sortBy === 'cost') {
+                            return (a.complexity_score || 0) - (b.complexity_score || 0);
+                        }
+                        return 0;
+                    })
+                    .map((feat) => {
                     // 1. PLANNED FEATURE (The "Backlog" Card)
                     if (feat.status === 'planned') {
                         return (
@@ -606,6 +647,7 @@ export const Product = () => {
                     );
                 })}
             </main>
+            )}
 
             {/* Floating Action Button */}
             <div className="fixed bottom-20 right-6 z-50">
